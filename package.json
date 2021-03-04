@@ -1,0 +1,26 @@
+{
+  "name": "disbox",
+  "version": "1.0.0",
+  "description": "Box moving puzzle game",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ellie-exe/Disbox.git"
+  },
+  "author": "Ellie",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Ellie-exe/Disbox/issues"
+  },
+  "homepage": "https://github.com/Ellie-exe/Disbox#readme",
+  "dependencies": {
+    "@jakeyprime/logger": "^1.0.4",
+    "bluebird": "^3.7.2",
+    "discord.js": "github:discordjs/discord.js#c4c817116f868cedb4ec20bcbf90b9b3d382621e",
+    "enmap": "^5.8.4",
+    "redis": "^3.0.2"
+  }
+}
