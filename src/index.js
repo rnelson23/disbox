@@ -7,6 +7,8 @@ const messages = new discord.Collection();
 const counters = new discord.Collection();
 const levels = new discord.Collection();
 const grabbers = new discord.Collection();
+const heights = new discord.Collection();
+const widths = new discord.Collection();
 
 client.on('ready', async () => {logger.info('Bot ready')});
 
@@ -20,27 +22,37 @@ client.on('message', async (message) => {
 
     let board = [];
 
-    async function newGame(level = 1) {
+    async function newGame(width = 8, height = 4, level = 1) {
+        widths.set(message.author.id, width + 3);
+        heights.set(message.author.id, height + 2);
+
         async function randomize() {
-            board = [
-                red,  red,   red,   red,   red,   red,   red,   red,  red, '\n',
-                red, black, black, black, black, black, black, black, red, '\n',
-                red, black, black, black, black, black, black, black, red, '\n',
-                red, black, black, black, black, black, black, black, red, '\n',
-                red, black, black, black, black, black, black, black, red, '\n',
-                red,  red,   red,   red,   red,   red,   red,   red,  red, '\n'
-            ];
+            board = [];
+
+            for (let i = 0; i < (width + 2); i++) {
+                board.push(red);
+            }
+
+            board.push('\n');
+
+            for (let i = 0; i < height; i++) {
+                board.push(red);
+
+                for (let i = 0; i < width; i++) {
+                    board.push(black);
+                }
+
+                board.push(red);
+                board.push('\n');
+            }
+
+            for (let i = 0; i < (width + 2); i++) {
+                board.push(red);
+            }
 
             const playerLocation = Math.floor(Math.random() * board.length);
             const goalLocation = Math.floor(Math.random() * board.length);
             const blockLocation = Math.floor(Math.random() * board.length);
-
-            if (board[playerLocation] !== black) {
-                await randomize();
-                return;
-            }
-        
-            board.splice(playerLocation, 1, player);
 
             if (board[goalLocation] !== black) {
                 await randomize();
@@ -55,6 +67,13 @@ client.on('message', async (message) => {
             }
 
             board.splice(blockLocation, 1, block);
+
+            if (board[playerLocation] !== black) {
+                await randomize();
+                return;
+            }
+        
+            board.splice(playerLocation, 1, player);
 
             return board;
         }
@@ -95,6 +114,8 @@ client.on('message', async (message) => {
         plays.forEach(async (play, index) => {
             setTimeout(async () => {
                 const board = games.get(message.author.id);
+                const width = widths.get(message.author.id);
+                const height = heights.get(message.author.id);
                 const grabbed = grabbers.get(message.author.id);
                 const gameMessage = messages.get(message.author.id);
                 const playerLocation = board.indexOf(player) === -1 ? board.indexOf(grabbing) : board.indexOf(player);
@@ -106,26 +127,26 @@ client.on('message', async (message) => {
 
                 switch (play) {
                     case 'U': {
-                        if (board[playerLocation - 10] === black) {
-                            if (board[playerLocation + 10] === block && grabbed === true) {
+                        if (board[playerLocation - width] === black) {
+                            if (board[playerLocation + width] === block && grabbed === true) {
                                 grabbers.set(message.author.id, false);
 
-                                board.splice(playerLocation - 10, 1, player);
+                                board.splice(playerLocation - width, 1, player);
                                 board.splice(playerLocation, 1, block);
-                                board.splice(playerLocation + 10, 1, black);
+                                board.splice(playerLocation + width, 1, black);
                             
                             } else {
-                                board.splice(playerLocation - 10, 1, player);
+                                board.splice(playerLocation - width, 1, player);
                                 board.splice(playerLocation, 1, black);
                             }
                         
                         }
 
-                        if (board[playerLocation - 10] === block && board[playerLocation - 20] !== red) {
-                            if (board[playerLocation - 20] === goal) win = true;
+                        if (board[playerLocation - width] === block && board[playerLocation - (width * 2)] !== red) {
+                            if (board[playerLocation - (width * 2)] === goal) win = true;
 
-                            board.splice(playerLocation - 20, 1, block);
-                            board.splice(playerLocation - 10, 1, player);
+                            board.splice(playerLocation - (width * 2), 1, block);
+                            board.splice(playerLocation - width, 1, player);
                             board.splice(playerLocation, 1, black);
                         }
 
@@ -135,25 +156,25 @@ client.on('message', async (message) => {
                     }
 
                     case 'D': {
-                        if (board[playerLocation + 10] === black) {
-                            if (board[playerLocation - 10] === block && grabbed === true) {
+                        if (board[playerLocation + width] === black) {
+                            if (board[playerLocation - width] === block && grabbed === true) {
                                 grabbers.set(message.author.id, false);
 
-                                board.splice(playerLocation + 10, 1, player);
+                                board.splice(playerLocation + width, 1, player);
                                 board.splice(playerLocation, 1, block);
-                                board.splice(playerLocation - 10, 1, black);
+                                board.splice(playerLocation - width, 1, black);
                             
                             } else {
-                                board.splice(playerLocation + 10, 1, player);
+                                board.splice(playerLocation + width, 1, player);
                                 board.splice(playerLocation, 1, black);
                             }
                         }
 
-                        if (board[playerLocation + 10] === block && board[playerLocation + 20] !== red) {
-                            if (board[playerLocation + 20] === goal) win = true;
+                        if (board[playerLocation + width] === block && board[playerLocation + (width * 2)] !== red) {
+                            if (board[playerLocation + (width * 2)] === goal) win = true;
             
-                            board.splice(playerLocation + 20, 1, block);
-                            board.splice(playerLocation + 10, 1, player);
+                            board.splice(playerLocation + (width * 2), 1, block);
+                            board.splice(playerLocation + width, 1, player);
                             board.splice(playerLocation, 1, black);
                         }
 
@@ -229,7 +250,11 @@ client.on('message', async (message) => {
 
                     case 'C': {
                         const newLevel = level + 1;
-                        await newGame(newLevel);
+                        const newHeight = 4 + Math.floor(newLevel / 10);
+                        const newWidth = width - 3;
+
+                        heights.set(message.author.id, newHeight);
+                        await newGame(newWidth, newHeight, newLevel);
                         break;
                     }
 
@@ -237,6 +262,8 @@ client.on('message', async (message) => {
                         games.delete(message.author.id);
                         messages.delete(message.author.id);
                         levels.delete(message.author.id);
+                        widths.delete(message.author.id);
+                        heights.delete(message.author.id);
                         break;
                     }
                 }
