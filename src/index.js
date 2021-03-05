@@ -9,6 +9,7 @@ const levels = new discord.Collection();
 const grabbers = new discord.Collection();
 const heights = new discord.Collection();
 const widths = new discord.Collection();
+const onGoals = new discord.Collection();
 
 client.on('ready', async () => {logger.info('Bot ready')});
 
@@ -20,9 +21,9 @@ client.on('message', async (message) => {
     const player = ':flushed:';
     const grabbing = ':weary:';
 
-    let board = [];
+    let board;
 
-    async function newGame(width = 8, height = 4, level = 1) {
+    async function newGame(width = 6, height = 4, level = 1) {
         widths.set(message.author.id, width + 3);
         heights.set(message.author.id, height + 2);
 
@@ -50,30 +51,48 @@ client.on('message', async (message) => {
                 board.push(red);
             }
 
-            const playerLocation = Math.floor(Math.random() * board.length);
-            const goalLocation = Math.floor(Math.random() * board.length);
-            const blockLocation = Math.floor(Math.random() * board.length);
+            async function generateBarrier(amount) {
+                for (let i = 0; i < amount; i++) {
+                    const barrierLocation = Math.floor(Math.random() * board.length);
 
-            if (board[goalLocation] !== black) {
-                await randomize();
-                return;
-            }
-        
-            board.splice(goalLocation, 1, goal);
+                    if (board[barrierLocation] !== black) {
+                        await generateBarrier(amount - i);
+                        return;
+                    }
 
-            if (board[blockLocation] !== black) {
-                await randomize();
-                return;
+                    board.splice(barrierLocation, 1, red);
+                }
             }
 
-            board.splice(blockLocation, 1, block);
+            async function generateItem(item) {
+                const itemLocation = Math.floor(Math.random() * board.length);
 
-            if (board[playerLocation] !== black) {
-                await randomize();
-                return;
+                function blocked(location) {
+                    let blocked = true;
+    
+                    if (board[location - (width + 3)] !== red) blocked = false; 
+                    if (board[location + (width + 3)] !== red) blocked = false;
+                    if (board[location - 1] !== red) blocked = false;
+                    if (board[location + 1] !== red) blocked = false;
+    
+                    return blocked;
+                }
+
+                if (board[itemLocation] !== black || blocked(itemLocation) === true) {
+                    await generateItem(item);
+                    return;
+                }
+
+                board.splice(itemLocation, 1, item);
             }
-        
-            board.splice(playerLocation, 1, player);
+
+            if (level > 19 && level < 30) await generateBarrier(3);
+            if (level > 29 && level < 40) await generateBarrier(6);
+            if (level > 39) await generateBarrier(9);
+
+            await generateItem(goal);
+            await generateItem(block);
+            await generateItem(player);
 
             return board;
         }
@@ -98,6 +117,7 @@ client.on('message', async (message) => {
         levels.set(message.author.id, level);
         counters.set(message.author.id, 0);
         grabbers.set(message.author.id, false);
+        onGoals.set(message.author.id, false);
 
         logger.info('Game Start');
     }
@@ -116,6 +136,7 @@ client.on('message', async (message) => {
                 const board = games.get(message.author.id);
                 const width = widths.get(message.author.id);
                 const height = heights.get(message.author.id);
+                const onGoal = onGoals.get(message.author.id);
                 const grabbed = grabbers.get(message.author.id);
                 const gameMessage = messages.get(message.author.id);
                 const playerLocation = board.indexOf(player) === -1 ? board.indexOf(grabbing) : board.indexOf(player);
@@ -131,6 +152,26 @@ client.on('message', async (message) => {
                             if (board[playerLocation + width] === block && grabbed === true) {
                                 grabbers.set(message.author.id, false);
 
+                                if (onGoal === true) win = true;
+                                onGoals.set(message.author.id, false);
+
+                                board.splice(playerLocation - width, 1, player);
+                                board.splice(playerLocation, 1, block);
+                                board.splice(playerLocation + width, 1, black);
+                            
+                            } else {
+                                board.splice(playerLocation - width, 1, player);
+                                board.splice(playerLocation, 1, onGoal ? goal : black);
+                                onGoals.set(message.author.id, false);
+                            }
+                        }
+
+                        if (board[playerLocation - width] === goal) {
+                            onGoals.set(message.author.id, true);
+
+                            if (board[playerLocation + width] === block && grabbed === true) {
+                                grabbers.set(message.author.id, false);
+
                                 board.splice(playerLocation - width, 1, player);
                                 board.splice(playerLocation, 1, block);
                                 board.splice(playerLocation + width, 1, black);
@@ -139,7 +180,6 @@ client.on('message', async (message) => {
                                 board.splice(playerLocation - width, 1, player);
                                 board.splice(playerLocation, 1, black);
                             }
-                        
                         }
 
                         if (board[playerLocation - width] === block && board[playerLocation - (width * 2)] !== red) {
@@ -147,7 +187,8 @@ client.on('message', async (message) => {
 
                             board.splice(playerLocation - (width * 2), 1, block);
                             board.splice(playerLocation - width, 1, player);
-                            board.splice(playerLocation, 1, black);
+                            board.splice(playerLocation, 1, onGoal ? goal : black);
+                            onGoals.set(message.author.id, false);
                         }
 
                         valid = true;
@@ -160,10 +201,30 @@ client.on('message', async (message) => {
                             if (board[playerLocation - width] === block && grabbed === true) {
                                 grabbers.set(message.author.id, false);
 
+                                if (onGoal === true) win = true;
+                                onGoals.set(message.author.id, false);
+
                                 board.splice(playerLocation + width, 1, player);
                                 board.splice(playerLocation, 1, block);
                                 board.splice(playerLocation - width, 1, black);
-                            
+
+                            } else {
+                                board.splice(playerLocation + width, 1, player);
+                                board.splice(playerLocation, 1, onGoal ? goal : black);
+                                onGoals.set(message.author.id, false);
+                            }
+                        }
+
+                        if (board[playerLocation + width] === goal) {
+                            onGoals.set(message.author.id, true);
+
+                            if (board[playerLocation - width] === block && grabbed === true) {
+                                grabbers.set(message.author.id, false);
+
+                                board.splice(playerLocation + width, 1, player);
+                                board.splice(playerLocation, 1, block);
+                                board.splice(playerLocation - width, 1, black);
+
                             } else {
                                 board.splice(playerLocation + width, 1, player);
                                 board.splice(playerLocation, 1, black);
@@ -172,10 +233,11 @@ client.on('message', async (message) => {
 
                         if (board[playerLocation + width] === block && board[playerLocation + (width * 2)] !== red) {
                             if (board[playerLocation + (width * 2)] === goal) win = true;
-            
+
                             board.splice(playerLocation + (width * 2), 1, block);
                             board.splice(playerLocation + width, 1, player);
-                            board.splice(playerLocation, 1, black);
+                            board.splice(playerLocation, 1, onGoal ? goal : black);
+                            onGoals.set(message.author.id, false);
                         }
 
                         valid = true;
@@ -185,6 +247,26 @@ client.on('message', async (message) => {
 
                     case 'L': {
                         if (board[playerLocation - 1] === black) {
+                            if (board[playerLocation + 1] === block && grabbed === true) {
+                                grabbers.set(message.author.id, false);
+
+                                if (onGoal === true) win = true;
+                                onGoals.set(message.author.id, false);
+
+                                board.splice(playerLocation - 1, 1, player);
+                                board.splice(playerLocation, 1, block);
+                                board.splice(playerLocation + 1, 1, black);
+                            
+                            } else {
+                                board.splice(playerLocation - 1, 1, player);
+                                board.splice(playerLocation, 1, onGoal ? goal : black);
+                                onGoals.set(message.author.id, false);
+                            }
+                        }
+
+                        if (board[playerLocation - 1] === goal) {
+                            onGoals.set(message.author.id, true);
+
                             if (board[playerLocation + 1] === block && grabbed === true) {
                                 grabbers.set(message.author.id, false);
 
@@ -203,7 +285,8 @@ client.on('message', async (message) => {
             
                             board.splice(playerLocation - 2, 1, block);
                             board.splice(playerLocation - 1, 1, player);
-                            board.splice(playerLocation, 1, black);
+                            board.splice(playerLocation, 1, onGoal ? goal : black);
+                            onGoals.set(message.author.id, false);
                         }
 
                         valid = true;
@@ -213,6 +296,26 @@ client.on('message', async (message) => {
 
                     case 'R': {
                         if (board[playerLocation + 1] === black) {
+                            if (board[playerLocation - 1] === block && grabbed === true) {
+                                grabbers.set(message.author.id, false);
+
+                                if (onGoal === true) win = true;
+                                onGoals.set(message.author.id, false);
+
+                                board.splice(playerLocation + 1, 1, player);
+                                board.splice(playerLocation, 1, block);
+                                board.splice(playerLocation - 1, 1, black);
+                            
+                            } else {
+                                board.splice(playerLocation + 1, 1, player);
+                                board.splice(playerLocation, 1, onGoal ? goal : black);
+                                onGoals.set(message.author.id, false);
+                            }
+                        }
+
+                        if (board[playerLocation + 1] === goal) {
+                            onGoals.set(message.author.id, true);
+
                             if (board[playerLocation - 1] === block && grabbed === true) {
                                 grabbers.set(message.author.id, false);
 
@@ -231,7 +334,8 @@ client.on('message', async (message) => {
             
                             board.splice(playerLocation + 2, 1, block);
                             board.splice(playerLocation + 1, 1, player);
-                            board.splice(playerLocation, 1, black);
+                            board.splice(playerLocation, 1, onGoal ? goal : black);
+                            onGoals.set(message.author.id, false);
                         }
 
                         valid = true;
@@ -250,10 +354,17 @@ client.on('message', async (message) => {
 
                     case 'C': {
                         const newLevel = level + 1;
-                        const newHeight = 4 + Math.floor(newLevel / 10);
-                        const newWidth = width - 3;
+
+                        let newHeight = height - 2;
+                        let newWidth = width - 3;
+
+                        if (newLevel < 20) {
+                            newHeight = 2 * Math.floor((newLevel / 10) + 2);
+                            newWidth = 3 * Math.floor((newLevel / 10) + 2);
+                        }
 
                         heights.set(message.author.id, newHeight);
+                        widths.set(message.author.id, newWidth);
                         await newGame(newWidth, newHeight, newLevel);
                         break;
                     }
@@ -264,6 +375,7 @@ client.on('message', async (message) => {
                         levels.delete(message.author.id);
                         widths.delete(message.author.id);
                         heights.delete(message.author.id);
+                        onGoals.delete(message.author.id);
                         break;
                     }
                 }
