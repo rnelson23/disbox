@@ -1,31 +1,35 @@
 const discord = require('discord.js');
+const NodeCache = require('node-cache');
 const logger = require('@jakeyprime/logger');
 
 const client = new discord.Client();
-const games = new discord.Collection();
-const messages = new discord.Collection();
-const counters = new discord.Collection();
-const levels = new discord.Collection();
-const grabbers = new discord.Collection();
-const heights = new discord.Collection();
-const widths = new discord.Collection();
-const onGoals = new discord.Collection();
+const cache = new NodeCache();
 
-client.on('ready', async () => {logger.info('Bot ready')});
+client.on('ready', async () => { logger.info('Bot ready') });
 
 client.on('message', async (message) => {
-    const black = ':black_large_square:';
+    const args = message.content.slice(process.env.prefix.length).trim().split(/ +/);
+    const command = args.shift().toLowerCase();
+
+    if (message.author.bot) return;
+
     const red = ':red_square:';
+    const black = ':black_large_square:';
     const goal = ':negative_squared_cross_mark:';
     const block = ':brown_square:';
     const player = ':flushed:';
-    const grabbing = ':weary:';
+    const playerGrab = ':weary:';
 
-    let board;
+    if (message.content.startsWith(process.env.prefix) && command === 'play') {
+        logger.info(`${message.channel.id} ${message.author.tag}: ${process.env.prefix}${command}`);
+        newGame();
+    }
 
-    async function newGame(width = 6, height = 4, level = 1) {
-        widths.set(message.author.id, width + 3);
-        heights.set(message.author.id, height + 2);
+    async function newGame(level = 1) {
+        const width = level < 10 ? 6 : 9;
+        const height = level < 10 ? 4 : 6;
+
+        let board;
 
         async function randomize() {
             board = [];
@@ -69,12 +73,12 @@ client.on('message', async (message) => {
 
                 function blocked(location) {
                     let blocked = true;
-    
+
                     if (board[location - (width + 3)] !== red) blocked = false; 
                     if (board[location + (width + 3)] !== red) blocked = false;
                     if (board[location - 1] !== red) blocked = false;
                     if (board[location + 1] !== red) blocked = false;
-    
+
                     return blocked;
                 }
 
@@ -93,8 +97,6 @@ client.on('message', async (message) => {
             await generateItem(goal);
             await generateItem(block);
             await generateItem(player);
-
-            return board;
         }
 
         await randomize();
@@ -104,316 +106,266 @@ client.on('message', async (message) => {
             .setDescription(board.join(''))
             .setFooter('Number of moves: 0');
 
-        if (level === 1) {
-            const start = await message.channel.send(embed);
-            messages.set(message.author.id, start);
-        
+        const ongoing = cache.get(message.author.id);
+        let messageID;
+
+        if (ongoing === undefined) {
+            const msg = await message.channel.send(embed);
+            messageID = msg.id;
+
         } else {
-            const gameMessage = messages.get(message.author.id);
-            await gameMessage.edit(embed);
+            const msg = message.channel.messages.cache.get(ongoing.messageID);
+            await msg.edit(embed);
+            messageID = msg.id;
         }
 
-        games.set(message.author.id, board);
-        levels.set(message.author.id, level);
-        counters.set(message.author.id, 0);
-        grabbers.set(message.author.id, false);
-        onGoals.set(message.author.id, false);
+        const game = {
+            board: board,
+            width: width + 3,
+            height: height + 2,
+            level: level,
+            moves: 0,
+            grab: false,
+            onGoal: false,
+            messageID: messageID
+        }
 
-        logger.info('Game Start');
+        cache.set(message.author.id, game);
     }
 
-    if (message.author.bot) return;
-    if (message.content.startsWith(process.env.prefix + 'start')) newGame();
+    if (cache.has(message.author.id)) {
+        const plays = message.content.toUpperCase().split('');
+        const start = cache.get(message.author.id);
+        const reset = JSON.stringify(start.board);
+        const msg = message.channel.messages.cache.get(start.messageID);
 
-    if (games.has(message.author.id)) {
-        const plays = message.content.toUpperCase().match(/[DLCQ]|(?<!N|Q)U|R(?!A)|(?<!I)G/g);
-        const start = games.get(message.author.id).join('');
-        const reset = JSON.stringify(games.get(message.author.id));
+        if (msg.channel.id !== message.channel.id) return;
+
+        if (plays.includes('Q')) {
+            cache.del(message.author.id);
+            return;
+        }
+
         await message.delete();
 
         plays.forEach(async (play, index) => {
             setTimeout(async () => {
-                const board = games.get(message.author.id);
-                const width = widths.get(message.author.id);
-                const height = heights.get(message.author.id);
-                const onGoal = onGoals.get(message.author.id);
-                const grabbed = grabbers.get(message.author.id);
-                const gameMessage = messages.get(message.author.id);
-                const playerLocation = board.indexOf(player) === -1 ? board.indexOf(grabbing) : board.indexOf(player);
+                const game = cache.get(message.author.id);
 
-                let moves = counters.get(message.author.id);
-                let level = levels.get(message.author.id);
-                let valid = false;
+                let board = game.board;
+                let width = game.width;
+                let height = game.height;
+                let level = game.level;
+                let moves = game.moves;
+                let grab = game.grab;
+                let onGoal = game.onGoal;
+
+                let moveGoal = false;
                 let win = false;
+
+                let location = board.indexOf(player) === -1 ? board.indexOf(playerGrab) : board.indexOf(player);
 
                 switch (play) {
                     case 'U': {
-                        if (board[playerLocation - width] === black) {
-                            if (board[playerLocation + width] === block && grabbed === true) {
-                                grabbers.set(message.author.id, false);
+                        if (board[location - width] === red) return;
+                        if (board[location - width] === goal) moveGoal = true;
 
-                                if (onGoal === true) win = true;
-                                onGoals.set(message.author.id, false);
+                        if (board[location - width] === black || board[location - width] === goal) {
+                            board.splice(location - width, 1, player);
 
-                                board.splice(playerLocation - width, 1, player);
-                                board.splice(playerLocation, 1, block);
-                                board.splice(playerLocation + width, 1, black);
-                            
+                            if (board[location + width] === block && grab) {
+                                if (onGoal) win = true;
+
+                                board.splice(location, 1, block);
+                                board.splice(location + width, 1, black);
+
+                                grab = false;
+
                             } else {
-                                board.splice(playerLocation - width, 1, player);
-                                board.splice(playerLocation, 1, onGoal ? goal : black);
-                                onGoals.set(message.author.id, false);
+                                board.splice(location, 1, onGoal ? goal : black);
                             }
                         }
 
-                        if (board[playerLocation - width] === goal) {
-                            onGoals.set(message.author.id, true);
+                        if (board[location - width] === block && board[location - (width * 2)] !== red) {
+                            if (board[location - (width * 2)] === goal) win = true;
 
-                            if (board[playerLocation + width] === block && grabbed === true) {
-                                grabbers.set(message.author.id, false);
-
-                                board.splice(playerLocation - width, 1, player);
-                                board.splice(playerLocation, 1, block);
-                                board.splice(playerLocation + width, 1, black);
-                            
-                            } else {
-                                board.splice(playerLocation - width, 1, player);
-                                board.splice(playerLocation, 1, black);
-                            }
+                            board.splice(location - (width * 2), 1, block);
+                            board.splice(location - width, 1, player);
+                            board.splice(location, 1, onGoal ? goal : black);
                         }
 
-                        if (board[playerLocation - width] === block && board[playerLocation - (width * 2)] !== red) {
-                            if (board[playerLocation - (width * 2)] === goal) win = true;
-
-                            board.splice(playerLocation - (width * 2), 1, block);
-                            board.splice(playerLocation - width, 1, player);
-                            board.splice(playerLocation, 1, onGoal ? goal : black);
-                            onGoals.set(message.author.id, false);
-                        }
-
-                        valid = true;
+                        onGoal = moveGoal;
                         moves++;
                         break;
                     }
 
                     case 'D': {
-                        if (board[playerLocation + width] === black) {
-                            if (board[playerLocation - width] === block && grabbed === true) {
-                                grabbers.set(message.author.id, false);
+                        if (board[location + width] === red) return;
+                        if (board[location + width] === goal) moveGoal = true;
 
-                                if (onGoal === true) win = true;
-                                onGoals.set(message.author.id, false);
+                        if (board[location + width] === black || board[location + width] === goal) {
+                            board.splice(location + width, 1, player);
 
-                                board.splice(playerLocation + width, 1, player);
-                                board.splice(playerLocation, 1, block);
-                                board.splice(playerLocation - width, 1, black);
+                            if (board[location - width] === block && grab) {
+                                if (onGoal) win = true;
+
+                                board.splice(location, 1, block);
+                                board.splice(location - width, 1, black);
+
+                                grab = false;
 
                             } else {
-                                board.splice(playerLocation + width, 1, player);
-                                board.splice(playerLocation, 1, onGoal ? goal : black);
-                                onGoals.set(message.author.id, false);
+                                board.splice(location, 1, onGoal ? goal : black);
                             }
                         }
 
-                        if (board[playerLocation + width] === goal) {
-                            onGoals.set(message.author.id, true);
+                        if (board[location + width] === block && board[location + (width * 2)] !== red) {
+                            if (board[location + (width * 2)] === goal) win = true;
 
-                            if (board[playerLocation - width] === block && grabbed === true) {
-                                grabbers.set(message.author.id, false);
-
-                                board.splice(playerLocation + width, 1, player);
-                                board.splice(playerLocation, 1, block);
-                                board.splice(playerLocation - width, 1, black);
-
-                            } else {
-                                board.splice(playerLocation + width, 1, player);
-                                board.splice(playerLocation, 1, black);
-                            }
+                            board.splice(location + (width * 2), 1, block);
+                            board.splice(location + width, 1, player);
+                            board.splice(location, 1, onGoal ? goal : black);
                         }
 
-                        if (board[playerLocation + width] === block && board[playerLocation + (width * 2)] !== red) {
-                            if (board[playerLocation + (width * 2)] === goal) win = true;
-
-                            board.splice(playerLocation + (width * 2), 1, block);
-                            board.splice(playerLocation + width, 1, player);
-                            board.splice(playerLocation, 1, onGoal ? goal : black);
-                            onGoals.set(message.author.id, false);
-                        }
-
-                        valid = true;
-                        moves++
+                        onGoal = moveGoal;
+                        moves++;
                         break;
                     }
 
                     case 'L': {
-                        if (board[playerLocation - 1] === black) {
-                            if (board[playerLocation + 1] === block && grabbed === true) {
-                                grabbers.set(message.author.id, false);
+                        if (board[location - 1] === red) return;
+                        if (board[location - 1] === goal) moveGoal = true;
 
-                                if (onGoal === true) win = true;
-                                onGoals.set(message.author.id, false);
+                        if (board[location - 1] === black || board[location - 1] === goal) {
+                            board.splice(location - 1, 1, player);
 
-                                board.splice(playerLocation - 1, 1, player);
-                                board.splice(playerLocation, 1, block);
-                                board.splice(playerLocation + 1, 1, black);
-                            
+                            if (board[location + 1] === block && grab) {
+                                if (onGoal) win = true;
+
+                                board.splice(location, 1, block);
+                                board.splice(location + 1, 1, black);
+
+                                grab = false;
+
                             } else {
-                                board.splice(playerLocation - 1, 1, player);
-                                board.splice(playerLocation, 1, onGoal ? goal : black);
-                                onGoals.set(message.author.id, false);
+                                board.splice(location, 1, onGoal ? goal : black);
                             }
                         }
 
-                        if (board[playerLocation - 1] === goal) {
-                            onGoals.set(message.author.id, true);
+                        if (board[location - 1] === block && board[location - 2] !== red) {
+                            if (board[location - 2] === goal) win = true;
 
-                            if (board[playerLocation + 1] === block && grabbed === true) {
-                                grabbers.set(message.author.id, false);
-
-                                board.splice(playerLocation - 1, 1, player);
-                                board.splice(playerLocation, 1, block);
-                                board.splice(playerLocation + 1, 1, black);
-                            
-                            } else {
-                                board.splice(playerLocation - 1, 1, player);
-                                board.splice(playerLocation, 1, black);
-                            }
+                            board.splice(location - 2, 1, block);
+                            board.splice(location - 1, 1, player);
+                            board.splice(location, 1, onGoal ? goal : black);
                         }
 
-                        if (board[playerLocation - 1] === block && board[playerLocation - 2] !== red) {
-                            if (board[playerLocation - 2] === goal) win = true;
-            
-                            board.splice(playerLocation - 2, 1, block);
-                            board.splice(playerLocation - 1, 1, player);
-                            board.splice(playerLocation, 1, onGoal ? goal : black);
-                            onGoals.set(message.author.id, false);
-                        }
-
-                        valid = true;
-                        moves++
+                        onGoal = moveGoal;
+                        moves++;
                         break;
                     }
 
                     case 'R': {
-                        if (board[playerLocation + 1] === black) {
-                            if (board[playerLocation - 1] === block && grabbed === true) {
-                                grabbers.set(message.author.id, false);
+                        if (board[location + 1] === red) return;
+                        if (board[location + 1] === goal) moveGoal = true;
 
-                                if (onGoal === true) win = true;
-                                onGoals.set(message.author.id, false);
+                        if (board[location + 1] === black || board[location + 1] === goal) {
+                            board.splice(location + 1, 1, player);
 
-                                board.splice(playerLocation + 1, 1, player);
-                                board.splice(playerLocation, 1, block);
-                                board.splice(playerLocation - 1, 1, black);
-                            
+                            if (board[location - 1] === block && grab) {
+                                if (onGoal) win = true;
+
+                                board.splice(location, 1, block);
+                                board.splice(location - 1, 1, black);
+
+                                grab = false;
+
                             } else {
-                                board.splice(playerLocation + 1, 1, player);
-                                board.splice(playerLocation, 1, onGoal ? goal : black);
-                                onGoals.set(message.author.id, false);
+                                board.splice(location, 1, onGoal ? goal : black);
                             }
                         }
 
-                        if (board[playerLocation + 1] === goal) {
-                            onGoals.set(message.author.id, true);
+                        if (board[location + 1] === block && board[location + 2] !== red) {
+                            if (board[location + 2] === goal) win = true;
 
-                            if (board[playerLocation - 1] === block && grabbed === true) {
-                                grabbers.set(message.author.id, false);
-
-                                board.splice(playerLocation + 1, 1, player);
-                                board.splice(playerLocation, 1, block);
-                                board.splice(playerLocation - 1, 1, black);
-                            
-                            } else {
-                                board.splice(playerLocation + 1, 1, player);
-                                board.splice(playerLocation, 1, black);
-                            }
+                            board.splice(location + 2, 1, block);
+                            board.splice(location + 1, 1, player);
+                            board.splice(location, 1, onGoal ? goal : black);
                         }
 
-                        if (board[playerLocation + 1] === block && board[playerLocation + 2] !== red) {
-                            if (board[playerLocation + 2] === goal) win = true;
-            
-                            board.splice(playerLocation + 2, 1, block);
-                            board.splice(playerLocation + 1, 1, player);
-                            board.splice(playerLocation, 1, onGoal ? goal : black);
-                            onGoals.set(message.author.id, false);
-                        }
-
-                        valid = true;
-                        moves++
+                        onGoal = moveGoal;
+                        moves++;
                         break;
                     }
 
                     case 'G': {
-                        grabbers.set(message.author.id, true);
-                        board.splice(playerLocation, 1, grabbing);
+                        board.splice(location, 1, playerGrab);
 
-                        valid = true;
+                        grab = true;
                         moves++
                         break;
                     }
 
                     case 'C': {
-                        const newLevel = level + 1;
-
-                        let newHeight = height - 2;
-                        let newWidth = width - 3;
-
-                        if (newLevel < 20) {
-                            newHeight = 2 * Math.floor((newLevel / 10) + 2);
-                            newWidth = 3 * Math.floor((newLevel / 10) + 2);
-                        }
-
-                        heights.set(message.author.id, newHeight);
-                        widths.set(message.author.id, newWidth);
-                        await newGame(newWidth, newHeight, newLevel);
-                        break;
-                    }
-
-                    case 'Q': {
-                        games.delete(message.author.id);
-                        messages.delete(message.author.id);
-                        levels.delete(message.author.id);
-                        widths.delete(message.author.id);
-                        heights.delete(message.author.id);
-                        onGoals.delete(message.author.id);
-                        break;
+                        level++
+                        await newGame(level);
+                        return;
                     }
                 }
 
-                if (valid === true && win === false) {
-                    counters.set(message.author.id, moves);
-                    const embed = new discord.MessageEmbed()
-                        .setAuthor(`Level ${level}`)
-                        .setDescription(board.join(''))
-                        .setFooter(`Number of moves: ${moves}`);
-
-                    await gameMessage.edit(embed);
-                }
-            
-                if (win === true) {
-                    const embed = new discord.MessageEmbed()
-                        .setAuthor(`Level ${level}`)
-                        .setDescription(board.join(''))
-                        .setFooter(`Number of moves: ${moves}`)
-                        .setColor(0x77B255);
-
-                    await gameMessage.edit(embed);
-                }
-
-                setTimeout(async () => {
-                    if ((index + 1) === plays.length && valid === true && win === false) {
-                        games.set(message.author.id, JSON.parse(reset));
-                        counters.set(message.author.id, 0);
-
+                switch (win) {
+                    case true: {
                         const embed = new discord.MessageEmbed()
                             .setAuthor(`Level ${level}`)
-                            .setDescription(start)
-                            .setFooter('Number of moves: 0');
+                            .setDescription(board.join(''))
+                            .setFooter(`Number of moves: ${moves}`)
+                            .setColor(0x77B255);
 
-                        await gameMessage.edit(embed);
+                        await msg.edit(embed);
+                        break;
                     }
 
-                }, 1000);
+                    case false: {
+                        const embed = new discord.MessageEmbed()
+                            .setAuthor(`Level ${level}`)
+                            .setDescription(board.join(''))
+                            .setFooter(`Number of moves: ${moves}`);
+
+                        await msg.edit(embed);
+
+                        if ((index + 1) === plays.length) {
+                            board = JSON.parse(reset);
+                            moves = 0;
+                            grab = false;
+                            onGoal = false;
+
+                            setTimeout(async () => {
+                                const embed = new discord.MessageEmbed()
+                                    .setAuthor(`Level ${level}`)
+                                    .setDescription(board.join(''))
+                                    .setFooter(`Number of moves: ${moves}`);
+
+                                await msg.edit(embed);
+
+                            }, 1500);
+                        }
+
+                        break;
+                    }
+                }
+
+                const gameState = {
+                    board: board,
+                    width: width,
+                    height: height,
+                    level: level,
+                    moves: moves,
+                    grab: grab,
+                    onGoal: onGoal,
+                    messageID: msg.id
+                }
+
+                cache.set(message.author.id, gameState);
 
             }, index * 1500);
         });
