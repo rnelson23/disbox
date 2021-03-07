@@ -5,7 +5,7 @@ const logger = require('@jakeyprime/logger');
 const client = new discord.Client();
 const cache = new NodeCache();
 
-client.on('ready', async () => { logger.info('Bot ready') });
+client.on('ready', async () => { logger.info(`Bot ready in ${client.guilds.cache.array().length} guilds`) });
 
 client.on('message', async (message) => {
     const args = message.content.slice(process.env.prefix.length).trim().split(/ +/);
