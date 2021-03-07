@@ -302,12 +302,12 @@ client.on('message', async (message) => {
                         board.splice(location, 1, playerGrab);
 
                         grab = true;
-                        moves++
+                        moves++;
                         break;
                     }
 
                     case 'C': {
-                        level++
+                        level++;
                         await newGame(level);
                         return;
                     }
