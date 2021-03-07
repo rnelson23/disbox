@@ -134,7 +134,7 @@ client.on('message', async (message) => {
     }
 
     if (cache.has(message.author.id)) {
-        const plays = message.content.toUpperCase().split('');
+        const plays = message.content.toUpperCase().match(/[DLCQ]|(?<!N|Q)U|R(?!A)|(?<!I)G/g);
         const start = cache.get(message.author.id);
         const reset = JSON.stringify(start.board);
         const msg = message.channel.messages.cache.get(start.messageID);
