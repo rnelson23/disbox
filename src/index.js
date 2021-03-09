@@ -16,13 +16,14 @@ client.on('message', async (message) => {
 
     if (cache.has(message.author.id)) {
         const direction = /(?<!\w)(U(?=P\s)|D(?=OWN\s)|L(?=EFT\s)|R(?=IGHT\s)|P(?=ULL\s(UP\s|DOWN\s|LEFT\s|RIGHT\s)))/g;
+        const input = message.content.toLocaleUpperCase();
 
-        let moves = message.content.toUpperCase().match(/(?<!\w)Q(?=UIT)/g);
-        if (moves === null) moves = message.content.toUpperCase().match(/(?<!\w)C(?=ONTINUE)/g);
-        if (moves === null) moves = message.content.toUpperCase().match(direction);
-        if (moves === null) moves = message.content.toUpperCase().match(/[Q]/g);
-        if (moves === null) moves = message.content.toUpperCase().match(/[C]/g);
-        if (moves === null) moves = message.content.toUpperCase().match(/[UDLRP]/g);
+        let moves = input.match(/(?<!\w)Q(?=UIT)/g);
+        if (moves === null) moves = input.match(/(?<!\w)C(?=ONTINUE)/g);
+        if (moves === null) moves = input.match(direction);
+        if (moves === null) moves = input.match(/[Q]/g);
+        if (moves === null) moves = input.match(/[C]/g);
+        if (moves === null) moves = input.match(/[UDLRP]/g);
         if (moves === null) return;
 
         if (!message.channel.messages.cache.has(cache.get(message.author.id).messageID)) return;
