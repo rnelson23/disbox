@@ -1,0 +1,234 @@
+const { MessageEmbed } = require('discord.js');
+const constants = require('../constants');
+/**
+ * @param {import('discord.js').Message} message
+ * @param {import('node-cache')} cache
+ * @param {RegExpMatchArray} moves
+ */
+module.exports = async (message, cache, moves) => {
+    const msg = message.channel.messages.cache.get(cache.get(message.author.id).messageID);
+    const reset = JSON.stringify(cache.get(message.author.id).board);
+
+    const red = constants.emojis.red;
+    const black = constants.emojis.black;
+    const goal = constants.emojis.goal;
+    const block = constants.emojis.block;
+    const player = constants.emojis.player;
+    const playerPull = constants.emojis.playerPull;
+
+    moves.forEach(async (move, index) => {
+        setTimeout(async () => {
+            const game = cache.get(message.author.id);
+
+            let board = game.board;
+            let width = game.width;
+            let height = game.height;
+            let level = game.level;
+            let onGoal = game.onGoal;
+            let isPull = game.isPull;
+            let numMoves = game.numMoves;
+
+            let moveGoal = false;
+            let win = false;
+
+            let location = board.indexOf(player) === -1 ? board.indexOf(playerPull) : board.indexOf(player);
+
+            switch (move) {
+                case 'U': {
+                    if (board[location - width] === red) return;
+                    if (board[location - width] === goal) moveGoal = true;
+
+                    if (board[location - width] === black || board[location - width] === goal) {
+                        board.splice(location - width, 1, player);
+
+                        if (board[location + width] === block && isPull) {
+                            if (onGoal) win = true;
+
+                            board.splice(location, 1, block);
+                            board.splice(location + width, 1, black);
+
+                            isPull = false;
+
+                        } else {
+                            board.splice(location, 1, onGoal ? goal : black);
+                        }
+                    }
+
+                    if (board[location - width] === block && board[location - (width * 2)] !== red) {
+                        if (board[location - (width * 2)] === goal) win = true;
+
+                        board.splice(location - (width * 2), 1, block);
+                        board.splice(location - width, 1, player);
+                        board.splice(location, 1, onGoal ? goal : black);
+                    }
+
+                    onGoal = moveGoal;
+                    numMoves++;
+                    break;
+                }
+
+                case 'D': {
+                    if (board[location + width] === red) return;
+                    if (board[location + width] === goal) moveGoal = true;
+
+                    if (board[location + width] === black || board[location + width] === goal) {
+                        board.splice(location + width, 1, player);
+
+                        if (board[location - width] === block && isPull) {
+                            if (onGoal) win = true;
+
+                            board.splice(location, 1, block);
+                            board.splice(location - width, 1, black);
+
+                            isPull = false;
+
+                        } else {
+                            board.splice(location, 1, onGoal ? goal : black);
+                        }
+                    }
+
+                    if (board[location + width] === block && board[location + (width * 2)] !== red) {
+                        if (board[location + (width * 2)] === goal) win = true;
+
+                        board.splice(location + (width * 2), 1, block);
+                        board.splice(location + width, 1, player);
+                        board.splice(location, 1, onGoal ? goal : black);
+                    }
+
+                    onGoal = moveGoal;
+                    numMoves++;
+                    break;
+                }
+
+                case 'L': {
+                    if (board[location - 1] === red) return;
+                    if (board[location - 1] === goal) moveGoal = true;
+
+                    if (board[location - 1] === black || board[location - 1] === goal) {
+                        board.splice(location - 1, 1, player);
+
+                        if (board[location + 1] === block && isPull) {
+                            if (onGoal) win = true;
+
+                            board.splice(location, 1, block);
+                            board.splice(location + 1, 1, black);
+
+                            isPull = false;
+
+                        } else {
+                            board.splice(location, 1, onGoal ? goal : black);
+                        }
+                    }
+
+                    if (board[location - 1] === block && board[location - 2] !== red) {
+                        if (board[location - 2] === goal) win = true;
+
+                        board.splice(location - 2, 1, block);
+                        board.splice(location - 1, 1, player);
+                        board.splice(location, 1, onGoal ? goal : black);
+                    }
+
+                    onGoal = moveGoal;
+                    numMoves++;
+                    break;
+                }
+
+                case 'R': {
+                    if (board[location + 1] === red) return;
+                    if (board[location + 1] === goal) moveGoal = true;
+
+                    if (board[location + 1] === black || board[location + 1] === goal) {
+                        board.splice(location + 1, 1, player);
+
+                        if (board[location - 1] === block && isPull) {
+                            if (onGoal) win = true;
+
+                            board.splice(location, 1, block);
+                            board.splice(location - 1, 1, black);
+
+                            isPull = false;
+
+                        } else {
+                            board.splice(location, 1, onGoal ? goal : black);
+                        }
+                    }
+
+                    if (board[location + 1] === block && board[location + 2] !== red) {
+                        if (board[location + 2] === goal) win = true;
+
+                        board.splice(location + 2, 1, block);
+                        board.splice(location + 1, 1, player);
+                        board.splice(location, 1, onGoal ? goal : black);
+                    }
+
+                    onGoal = moveGoal;
+                    numMoves++;
+                    break;
+                }
+
+                case 'P': {
+                    board.splice(location, 1, playerPull);
+
+                    isPull = true;
+                    numMoves++;
+                    break;
+                }
+            }
+
+            switch (win) {
+                case true: {
+                    const embed = new MessageEmbed()
+                        .setAuthor(`Level ${level}`)
+                        .setDescription(board.join(''))
+                        .setFooter(`Number of moves: ${numMoves}`)
+                        .setColor(0x77B255);
+
+                    await msg.edit(embed);
+                    break;
+                }
+
+                case false: {
+                    const embed = new MessageEmbed()
+                        .setAuthor(`Level ${level}`)
+                        .setDescription(board.join(''))
+                        .setFooter(`Number of moves: ${numMoves}`);
+
+                    await msg.edit(embed);
+
+                    if ((index + 1) === moves.length) {
+                        board = JSON.parse(reset);
+                        numMoves = 0;
+                        isPull = false;
+                        onGoal = false;
+
+                        setTimeout(async () => {
+                            const embed = new MessageEmbed()
+                                .setAuthor(`Level ${level}`)
+                                .setDescription(board.join(''))
+                                .setFooter(`Number of moves: ${numMoves}`);
+
+                            await msg.edit(embed);
+
+                        }, 1500);
+                    }
+
+                    break;
+                }
+            }
+
+            const gameState = {
+                board: board,
+                width: width,
+                height: height,
+                level: level,
+                onGoal: onGoal,
+                isPull: isPull,
+                numMoves: numMoves,
+                messageID: msg.id
+            }
+
+            cache.set(message.author.id, gameState);
+
+        }, index * 1500);
+    });
+}
