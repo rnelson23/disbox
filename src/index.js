@@ -15,13 +15,17 @@ client.on('message', async (message) => {
     if (message.author.bot) return;
 
     if (cache.has(message.author.id)) {
-        const full = /(?<!\w)(U(?=P\s)|D(?=OWN\s)|L(?=EFT\s)|R(?=IGHT\s)|C(?=ONTINUE\s)|Q(?=UIT\s)|P(?=ULL (UP\s|DOWN\s|LEFT\s|RIGHT\s)))/g;
+        const direction = /(?<!\w)(U(?=P\s)|D(?=OWN\s)|L(?=EFT\s)|R(?=IGHT\s)|P(?=ULL\s(UP\s|DOWN\s|LEFT\s|RIGHT\s)))/g;
 
-        let moves = message.content.toUpperCase().match(full);
-        if (moves === null) moves = message.content.toUpperCase().match(/[UDLRPCQ]/g);
+        let moves = message.content.toUpperCase().match(/(?<!\w)Q(?=UIT)/g);
+        if (moves === null) moves = message.content.toUpperCase().match(/(?<!\w)C(?=ONTINUE)/g);
+        if (moves === null) moves = message.content.toUpperCase().match(direction);
+        if (moves === null) moves = message.content.toUpperCase().match(/[Q]/g);
+        if (moves === null) moves = message.content.toUpperCase().match(/[C]/g);
+        if (moves === null) moves = message.content.toUpperCase().match(/[UDLRP]/g);
+        if (moves === null) return;
 
         if (!message.channel.messages.cache.has(cache.get(message.author.id).messageID)) return;
-        if (moves === null) return;
 
         if (moves.includes('Q')) {
             cache.del(message.author.id);
