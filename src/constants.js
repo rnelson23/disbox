@@ -4,5 +4,5 @@ module.exports.emojis = {
     goal: ':negative_squared_cross_mark:',
     block: ':brown_square:',
     player: ':flushed:',
-    playerPulling: ':weary:',
+    playerPull: ':weary:',
 }

@@ -30,149 +30,73 @@ module.exports = async (message, cache, moves) => {
 
             let moveGoal = false;
             let win = false;
+            let value;
 
             let location = board.indexOf(player) === -1 ? board.indexOf(playerPull) : board.indexOf(player);
 
             switch (move) {
                 case 'U': {
-                    if (board[location - width] === red) return;
-                    if (board[location - width] === goal) moveGoal = true;
-
-                    if (board[location - width] === black || board[location - width] === goal) {
-                        board.splice(location - width, 1, player);
-
-                        if (board[location + width] === block && isPull) {
-                            if (onGoal) win = true;
-
-                            board.splice(location, 1, block);
-                            board.splice(location + width, 1, black);
-
-                            isPull = false;
-
-                        } else {
-                            board.splice(location, 1, onGoal ? goal : black);
-                        }
-                    }
-
-                    if (board[location - width] === block && board[location - (width * 2)] !== red) {
-                        if (board[location - (width * 2)] === goal) win = true;
-
-                        board.splice(location - (width * 2), 1, block);
-                        board.splice(location - width, 1, player);
-                        board.splice(location, 1, onGoal ? goal : black);
-                    }
-
-                    onGoal = moveGoal;
-                    numMoves++;
+                    value = -width;
                     break;
                 }
 
                 case 'D': {
-                    if (board[location + width] === red) return;
-                    if (board[location + width] === goal) moveGoal = true;
-
-                    if (board[location + width] === black || board[location + width] === goal) {
-                        board.splice(location + width, 1, player);
-
-                        if (board[location - width] === block && isPull) {
-                            if (onGoal) win = true;
-
-                            board.splice(location, 1, block);
-                            board.splice(location - width, 1, black);
-
-                            isPull = false;
-
-                        } else {
-                            board.splice(location, 1, onGoal ? goal : black);
-                        }
-                    }
-
-                    if (board[location + width] === block && board[location + (width * 2)] !== red) {
-                        if (board[location + (width * 2)] === goal) win = true;
-
-                        board.splice(location + (width * 2), 1, block);
-                        board.splice(location + width, 1, player);
-                        board.splice(location, 1, onGoal ? goal : black);
-                    }
-
-                    onGoal = moveGoal;
-                    numMoves++;
+                    value = width;
                     break;
                 }
 
                 case 'L': {
-                    if (board[location - 1] === red) return;
-                    if (board[location - 1] === goal) moveGoal = true;
-
-                    if (board[location - 1] === black || board[location - 1] === goal) {
-                        board.splice(location - 1, 1, player);
-
-                        if (board[location + 1] === block && isPull) {
-                            if (onGoal) win = true;
-
-                            board.splice(location, 1, block);
-                            board.splice(location + 1, 1, black);
-
-                            isPull = false;
-
-                        } else {
-                            board.splice(location, 1, onGoal ? goal : black);
-                        }
-                    }
-
-                    if (board[location - 1] === block && board[location - 2] !== red) {
-                        if (board[location - 2] === goal) win = true;
-
-                        board.splice(location - 2, 1, block);
-                        board.splice(location - 1, 1, player);
-                        board.splice(location, 1, onGoal ? goal : black);
-                    }
-
-                    onGoal = moveGoal;
-                    numMoves++;
+                    value = -1;
                     break;
                 }
 
                 case 'R': {
-                    if (board[location + 1] === red) return;
-                    if (board[location + 1] === goal) moveGoal = true;
-
-                    if (board[location + 1] === black || board[location + 1] === goal) {
-                        board.splice(location + 1, 1, player);
-
-                        if (board[location - 1] === block && isPull) {
-                            if (onGoal) win = true;
-
-                            board.splice(location, 1, block);
-                            board.splice(location - 1, 1, black);
-
-                            isPull = false;
-
-                        } else {
-                            board.splice(location, 1, onGoal ? goal : black);
-                        }
-                    }
-
-                    if (board[location + 1] === block && board[location + 2] !== red) {
-                        if (board[location + 2] === goal) win = true;
-
-                        board.splice(location + 2, 1, block);
-                        board.splice(location + 1, 1, player);
-                        board.splice(location, 1, onGoal ? goal : black);
-                    }
-
-                    onGoal = moveGoal;
-                    numMoves++;
+                    value = 1;
                     break;
                 }
 
                 case 'P': {
-                    board.splice(location, 1, playerPull);
-
-                    isPull = true;
-                    numMoves++;
+                    value = 0;
                     break;
                 }
+            }
+
+            if (value !== 0) {
+                if (board[location + value] === red) return;
+                if (board[location + value] === goal) moveGoal = true;
+
+                if (board[location + value] === black || board[location + value] === goal) {
+                    board.splice(location + value, 1, player);
+
+                    if (board[location - value] === block && isPull) {
+                        if (onGoal) win = true;
+
+                        board.splice(location, 1, block);
+                        board.splice(location - value, 1, black);
+
+                        isPull = false;
+
+                    } else {
+                        board.splice(location, 1, onGoal ? goal : black);
+                    }
+                }
+
+                if (board[location + value] === block && board[location + (value * 2)] !== red) {
+                    if (board[location + (value * 2)] === goal) win = true;
+
+                    board.splice(location + (value * 2), 1, block);
+                    board.splice(location + value, 1, player);
+                    board.splice(location, 1, onGoal ? goal : black);
+                }
+
+                onGoal = moveGoal;
+                numMoves++;
+            
+            } else {
+                board.splice(location, 1, playerPull);
+
+                isPull = true;
+                numMoves++;
             }
 
             switch (win) {

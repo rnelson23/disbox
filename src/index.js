@@ -15,13 +15,13 @@ client.on('message', async (message) => {
     if (message.author.bot) return;
 
     if (cache.has(message.author.id)) {
-        const full = /(?<!\w)(U(?=P)|D(?=OWN)|L(?=EFT)|R(?=IGHT)|C(?=ONTINUE)|Q(?=UIT)|P(?=ULL (UP|DOWN|LEFT|RIGHT)))/g;
+        const full = /(?<!\w)(U(?=P\s)|D(?=OWN\s)|L(?=EFT\s)|R(?=IGHT\s)|C(?=ONTINUE\s)|Q(?=UIT\s)|P(?=ULL (UP\s|DOWN\s|LEFT\s|RIGHT\s)))/g;
 
         let moves = message.content.toUpperCase().match(full);
         if (moves === null) moves = message.content.toUpperCase().match(/[UDLRPCQ]/g);
 
-        const msg = message.channel.messages.cache.get(cache.get(message.author.id).messageID);
-        if (msg.channel.id !== message.channel.id) return;
+        if (!message.channel.messages.cache.has(cache.get(message.author.id).messageID)) return;
+        if (moves === null) return;
 
         if (moves.includes('Q')) {
             cache.del(message.author.id);
@@ -39,7 +39,7 @@ client.on('message', async (message) => {
         return;
     }
 
-    if (message.content.startsWith(process.env.prefix)) return;
+    if (!message.content.startsWith(process.env.prefix)) return;
     logger.info(`${message.channel.id} ${message.author.tag}: ${process.env.prefix}${command}`);
 
     if (command === 'play') {
