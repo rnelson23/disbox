@@ -89,7 +89,7 @@ module.exports = async (message, cache, level = 1) => {
 
     const embed = new MessageEmbed()
         .setAuthor(`Level ${level}`)
-        .setDescription(board.join(''))
+        .setDescription(`__**Moves:**__ None\n\n${board.join('')}`)
         .setFooter('Number of moves: 0');
 
     const ongoing = cache.get(message.author.id);
@@ -97,6 +97,14 @@ module.exports = async (message, cache, level = 1) => {
 
     if (ongoing === undefined) {
         const msg = await message.channel.send(embed);
+        await msg.react(constants.emojis.up);
+        await msg.react(constants.emojis.down);
+        await msg.react(constants.emojis.left);
+        await msg.react(constants.emojis.right);
+        await msg.react(constants.emojis.pull);
+        //await msg.react(constants.emojis.undo);
+        await msg.react(constants.emojis.reset);
+        await msg.react(constants.emojis.play);
         messageID = msg.id;
 
     } else {
@@ -113,8 +121,9 @@ module.exports = async (message, cache, level = 1) => {
         numMoves: 0,
         onGoal: false,
         isPull: false,
+        reacts: [],
         messageID: messageID
     }
 
-     cache.set(message.author.id, game);
-}
+    cache.set(message.author.id, game);
+};

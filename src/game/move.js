@@ -2,12 +2,13 @@ const { MessageEmbed } = require('discord.js');
 const constants = require('../constants');
 /**
  * @param {import('discord.js').Message} message
+ * @param {import('discord.js').User} author
  * @param {import('node-cache')} cache
  * @param {RegExpMatchArray} moves
  */
-module.exports = async (message, cache, moves) => {
-    const msg = message.channel.messages.cache.get(cache.get(message.author.id).messageID);
-    const reset = JSON.stringify(cache.get(message.author.id).board);
+module.exports = async (message, author, cache, moves) => {
+    const msg = message.channel.messages.cache.get(cache.get(author.id).messageID);
+    const reset = JSON.stringify(cache.get(author.id).board);
 
     const red = constants.emojis.red;
     const black = constants.emojis.black;
@@ -18,7 +19,7 @@ module.exports = async (message, cache, moves) => {
 
     moves.forEach(async (move, index) => {
         setTimeout(async () => {
-            const game = cache.get(message.author.id);
+            const game = cache.get(author.id);
 
             let board = game.board;
             let width = game.width;
@@ -122,13 +123,14 @@ module.exports = async (message, cache, moves) => {
                     if ((index + 1) === moves.length) {
                         board = JSON.parse(reset);
                         numMoves = 0;
+                        moves = [];
                         isPull = false;
                         onGoal = false;
 
                         setTimeout(async () => {
                             const embed = new MessageEmbed()
                                 .setAuthor(`Level ${level}`)
-                                .setDescription(board.join(''))
+                                .setDescription(`__**Moves:**__ None\n\n${board.join('')}`)
                                 .setFooter(`Number of moves: ${numMoves}`);
 
                             await msg.edit(embed);
@@ -148,11 +150,12 @@ module.exports = async (message, cache, moves) => {
                 onGoal: onGoal,
                 isPull: isPull,
                 numMoves: numMoves,
+                reacts: moves,
                 messageID: msg.id
             }
 
-            cache.set(message.author.id, gameState);
+            cache.set(author.id, gameState);
 
         }, index * 1500);
     });
-}
+};

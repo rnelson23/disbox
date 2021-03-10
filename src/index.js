@@ -40,7 +40,7 @@ client.on('message', async (message) => {
             return;
         }
 
-        game.move(message, cache, moves);
+        game.move(message, message.author, cache, moves);
         return;
     }
 
@@ -51,5 +51,11 @@ client.on('message', async (message) => {
         game.generate(message, cache);
     }
 });
+
+client.on('messageReactionAdd', async (reaction, user) => {
+    if (cache.has(user.id) && cache.get(user.id).messageID === reaction.message.id) {
+        game.react(reaction, user, cache, game);
+    }
+})
 
 client.login(process.env.token);
