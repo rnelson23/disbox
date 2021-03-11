@@ -15,7 +15,7 @@ client.on('message', async (message) => {
     if (!message.content.startsWith(process.env.prefix) || message.author.bot) return;
     logger.info(`${message.channel.id} ${message.author.tag}: ${process.env.prefix}${command}`);
 
-    if (command === 'play') game.generate(message, cache);
+    if (command === 'play') game.generate(message, message.author, cache);
 });
 
 client.on('messageReactionAdd', async (reaction, user) => {

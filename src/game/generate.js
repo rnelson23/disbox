@@ -2,10 +2,11 @@ const { MessageEmbed } = require('discord.js');
 const constants = require('../constants');
 /**
  * @param {import('discord.js').Message} message
+ * @param {import('discord.js').User} author
  * @param {import('node-cache')} cache
  * @param {number} level
  */
-module.exports = async (message, cache, level = 1) => {
+module.exports = async (message, author, cache, level = 1) => {
     const width = level < 10 ? 6 : 9;
     const height = level < 10 ? 4 : 6;
 
@@ -89,28 +90,38 @@ module.exports = async (message, cache, level = 1) => {
 
     const embed = new MessageEmbed()
         .setAuthor(`Level ${level}`)
-        .setDescription(`__**Moves:**__ None\n\n${board.join('')}`)
+        .setDescription(`${board.join('')}\n\n__**Moves:**__\n**>**`)
         .setFooter('Number of moves: 0');
 
-    const ongoing = cache.get(message.author.id);
+    const gameCache = cache.get(author.id);
     let messageID;
 
-    if (ongoing === undefined) {
+    if (gameCache === undefined) {
         const msg = await message.channel.send(embed);
+
         await msg.react(constants.emojis.up);
         await msg.react(constants.emojis.down);
         await msg.react(constants.emojis.left);
         await msg.react(constants.emojis.right);
         await msg.react(constants.emojis.pull);
-        //await msg.react(constants.emojis.undo);
-        await msg.react(constants.emojis.reset);
+        await msg.react(constants.emojis.undo);
         await msg.react(constants.emojis.play);
+
         messageID = msg.id;
 
     } else {
-        const msg = message.channel.messages.cache.get(ongoing.messageID);
-        await msg.edit(embed);
-        messageID = msg.id;
+        await message.edit(embed);
+
+        await message.reactions.removeAll();
+        await message.react(constants.emojis.up);
+        await message.react(constants.emojis.down);
+        await message.react(constants.emojis.left);
+        await message.react(constants.emojis.right);
+        await message.react(constants.emojis.pull);
+        await message.react(constants.emojis.undo);
+        await message.react(constants.emojis.play);
+
+        messageID = message.id;
     }
 
     const game = {
@@ -125,5 +136,5 @@ module.exports = async (message, cache, level = 1) => {
         messageID: messageID
     }
 
-    cache.set(message.author.id, game);
+    cache.set(author.id, game, 300000);
 };

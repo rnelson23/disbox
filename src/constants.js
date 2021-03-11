@@ -13,6 +13,8 @@ module.exports = {
         pull: '🇵',
         undo: '🔂',
         reset: '🔁',
-        play: '▶️'
+        play: '▶️',
+        continue: '⏩',
+        quit: '⏹️'
     }
 };

@@ -7,7 +7,6 @@ const constants = require('../constants');
  * @param {RegExpMatchArray} moves
  */
 module.exports = async (message, author, cache, moves) => {
-    const msg = message.channel.messages.cache.get(cache.get(author.id).messageID);
     const reset = JSON.stringify(cache.get(author.id).board);
 
     const red = constants.emojis.red;
@@ -36,27 +35,27 @@ module.exports = async (message, author, cache, moves) => {
             let location = board.indexOf(player) === -1 ? board.indexOf(playerPull) : board.indexOf(player);
 
             switch (move) {
-                case 'U': {
+                case 'Up': {
                     value = -width;
                     break;
                 }
 
-                case 'D': {
+                case 'Down': {
                     value = width;
                     break;
                 }
 
-                case 'L': {
+                case 'Left': {
                     value = -1;
                     break;
                 }
 
-                case 'R': {
+                case 'Right': {
                     value = 1;
                     break;
                 }
 
-                case 'P': {
+                case 'Pull': {
                     value = 0;
                     break;
                 }
@@ -104,21 +103,26 @@ module.exports = async (message, author, cache, moves) => {
                 case true: {
                     const embed = new MessageEmbed()
                         .setAuthor(`Level ${level}`)
-                        .setDescription(board.join(''))
+                        .setDescription(`${board.join('')}\n\n__**Moves:**__\n**>** ${moves.join('\n**>** ')}`)
                         .setFooter(`Number of moves: ${numMoves}`)
                         .setColor(0x77B255);
 
-                    await msg.edit(embed);
+                    await message.edit(embed);
+
+                    await message.reactions.removeAll();
+                    await message.react(constants.emojis.quit);
+                    await message.react(constants.emojis.continue);
+
                     break;
                 }
 
                 case false: {
                     const embed = new MessageEmbed()
                         .setAuthor(`Level ${level}`)
-                        .setDescription(board.join(''))
+                        .setDescription(`${board.join('')}\n\n__**Moves:**__\n**>** ${moves.join('\n**>** ')}`)
                         .setFooter(`Number of moves: ${numMoves}`);
 
-                    await msg.edit(embed);
+                    await message.edit(embed);
 
                     if ((index + 1) === moves.length) {
                         board = JSON.parse(reset);
@@ -130,10 +134,10 @@ module.exports = async (message, author, cache, moves) => {
                         setTimeout(async () => {
                             const embed = new MessageEmbed()
                                 .setAuthor(`Level ${level}`)
-                                .setDescription(`__**Moves:**__ None\n\n${board.join('')}`)
+                                .setDescription(`${board.join('')}\n\n__**Moves:**__\n**>**`)
                                 .setFooter(`Number of moves: ${numMoves}`);
 
-                            await msg.edit(embed);
+                            await message.edit(embed);
 
                         }, 1500);
                     }
@@ -151,10 +155,10 @@ module.exports = async (message, author, cache, moves) => {
                 isPull: isPull,
                 numMoves: numMoves,
                 reacts: moves,
-                messageID: msg.id
+                messageID: message.id
             }
 
-            cache.set(author.id, gameState);
+            cache.set(author.id, gameState, 300000);
 
         }, index * 1500);
     });

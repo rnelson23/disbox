@@ -1,6 +1,4 @@
-const logger = require('@jakeyprime/logger');
 const { MessageEmbed } = require('discord.js');
-const constants = require('../constants');
 /**
  * @param {import('discord.js').MessageReaction} reaction
  * @param {import('discord.js').User} user
@@ -10,10 +8,10 @@ const constants = require('../constants');
 module.exports = async (reaction, user, cache, game) => {
     const message = reaction.message;
     const gameCache = cache.get(user.id);
-
     const board = gameCache.board;
-    const moves = gameCache.reacts;
     const level = gameCache.level;
+
+    let moves = gameCache.reacts;
 
     switch(reaction.emoji.name) {
         case '⬆️': {
@@ -59,17 +57,26 @@ module.exports = async (reaction, user, cache, game) => {
         }
 
         case '▶️': {
-            moves.forEach(async move => { moves.splice(moves.indexOf(move), 1, move.charAt(0)) });
             game.move(message, user, cache, moves);
             await reaction.users.remove(user);
+            return;
+        }
+
+        case '⏩': {
+            game.generate(message, user, cache, gameCache.level + 1);
+            return;
+        }
+
+        case '⏹️': {
+            cache.del(user.id);
             return;
         }
     }
 
     const embed = new MessageEmbed()
         .setAuthor(`Level ${level}`)
-        .setDescription(`__**Moves:**__ ${moves.join(' **>** ')}\n\n${board.join('')}`)
-        .setFooter(`Number of moves: ${moves.length}`);
+        .setDescription(`${board.join('')}\n\n__**Moves:**__\n**>** ${moves.join('\n**>** ')}`)
+        .setFooter('Number of moves: 0');
 
     await message.edit(embed);
 
@@ -85,5 +92,5 @@ module.exports = async (reaction, user, cache, game) => {
         messageID: message.id
     }
 
-    cache.set(user.id, gameState);
+    cache.set(user.id, gameState, 300000);
 };
