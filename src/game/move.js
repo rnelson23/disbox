@@ -4,7 +4,7 @@ const constants = require('../constants');
  * @param {import('discord.js').Message} message
  * @param {import('discord.js').User} author
  * @param {import('node-cache')} cache
- * @param {RegExpMatchArray} moves
+ * @param {string[]} moves
  */
 module.exports = async (message, author, cache, moves) => {
     const reset = JSON.stringify(cache.get(author.id).board);
@@ -158,7 +158,7 @@ module.exports = async (message, author, cache, moves) => {
                 messageID: message.id
             }
 
-            cache.set(author.id, gameState, 300000);
+            cache.set(author.id, gameState, 900000);
 
         }, index * 1500);
     });

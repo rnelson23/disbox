@@ -1,13 +1,13 @@
 const { MessageEmbed } = require('discord.js');
+const game = require('../game');
 /**
  * @param {import('discord.js').MessageReaction} reaction
  * @param {import('discord.js').User} user
  * @param {import('node-cache')} cache
- * @param {import('../game')} game
  */
-module.exports = async (reaction, user, cache, game) => {
-    const message = reaction.message;
+module.exports = async (reaction, user, cache) => {
     const gameCache = cache.get(user.id);
+    const message = reaction.message;
     const board = gameCache.board;
     const level = gameCache.level;
 
@@ -92,5 +92,5 @@ module.exports = async (reaction, user, cache, game) => {
         messageID: message.id
     }
 
-    cache.set(user.id, gameState, 300000);
+    cache.set(user.id, gameState, 900000);
 };

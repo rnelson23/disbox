@@ -136,5 +136,5 @@ module.exports = async (message, author, cache, level = 1) => {
         messageID: messageID
     }
 
-    cache.set(author.id, game, 300000);
+    cache.set(author.id, game, 900000);
 };
