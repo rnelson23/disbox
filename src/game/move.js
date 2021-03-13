@@ -158,7 +158,7 @@ module.exports = async (message, author, cache, moves) => {
                 messageID: message.id
             }
 
-            cache.set(author.id, gameState, 900000);
+            cache.set(author.id, gameState, 900);
 
         }, index * 1500);
     });

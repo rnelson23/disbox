@@ -92,5 +92,5 @@ module.exports = async (reaction, user, cache) => {
         messageID: message.id
     }
 
-    cache.set(user.id, gameState, 900000);
+    cache.set(user.id, gameState, 900);
 };

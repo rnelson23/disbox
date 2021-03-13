@@ -11,7 +11,7 @@ client.on('ready', async () => {
 });
 
 client.on('messageReactionAdd', async (reaction, user) => {
-    if (cache.get(user.id).messageID === reaction.message.id) {
+    if (cache.get(user.id)?.messageID === reaction.message.id) {
         game.react(reaction, user, cache);
     }
 });
