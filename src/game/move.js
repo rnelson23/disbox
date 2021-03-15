@@ -91,7 +91,7 @@ module.exports = async (message, author, cache, moves) => {
 
                 onGoal = moveGoal;
                 numMoves++;
-            
+
             } else {
                 board.splice(location, 1, playerPull);
 
